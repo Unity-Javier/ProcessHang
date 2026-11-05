@@ -1,0 +1,14 @@
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+*.csproj
+*.sln
+*.user
+
+# The generated chain is ~16k files - regenerate it from the menu instead of committing it.
+Assets/Content/
+Assets/Content.meta

@@ -12,7 +12,7 @@ Each scenario is kept small on purpose. You open a scene, press Play (or exit Pl
 |---|---|
 | **Unity** | `2022.3.49f1` (see `ProjectSettings/ProjectVersion.txt`) |
 | **OS** | macOS (the native plugin in `Hang02` is a `.dylib`) |
-| **CPU** | `hangingplugin.dylib` is built for **x86_64 only**. On Apple Silicon, use the Intel (Rosetta) Editor, or the plugin won't load and you'll get a `DllNotFoundException` instead of a hang. |
+| **CPU** | `hangingplugin.dylib` is a universal binary (arm64 + x86_64), so it works on both Apple Silicon and Intel Macs. |
 
 > ⚠️ **Heads-up:** some of these scenarios freeze the Editor on purpose. Save your work in other projects first, and expect to force-quit Unity (`⌘⌥⎋` or `kill -9 <pid>`).
 
@@ -31,6 +31,9 @@ Assets/
 └── Scenes/
     ├── SampleScene.unity       # Cube + HangWithFinalizer   → Scenario 1
     └── SerializationHang.unity # Capsule + ExamplePlugin    → Scenario 2
+NativePlugin/                   # Source for hangingplugin.dylib (outside Assets, not imported)
+├── hangingplugin.cpp
+└── build.sh                    # Rebuilds the universal dylib into Assets/Hang02
 ```
 
 ---
@@ -59,14 +62,19 @@ Assets/
 
 **Setup:** `ExamplePlugin` (in `HangAsync.cs`) calls `Hang()` from `hangingplugin.dylib` inside `Task.Run(...)` and `await`s it from `async void Start()`.
 
-`Hang()` is just an infinite loop in native code:
+`Hang()` is just an infinite loop in native code (see `NativePlugin/hangingplugin.cpp`):
 
-```asm
-_Hang:
-    pushq %rbp
-    movq  %rsp, %rbp
-    jmp   .            ; spin forever
+```cpp
+void Hang()
+{
+    volatile bool keepSpinning = true;
+    while (keepSpinning)
+    {
+    }
+}
 ```
+
+To rebuild the plugin, run `NativePlugin/build.sh`. You need the Xcode command line tools.
 
 **Key idea:** The main thread stays responsive at first, because the work is on a thread-pool thread. But managed code **cannot interrupt a thread that is stuck in native code**. When Unity later needs to stop all managed threads, for example on a domain reload (exiting Play mode, recompiling scripts) or on quit, it waits for a thread that never comes back.
 
